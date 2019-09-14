@@ -4,7 +4,7 @@
 source set_env.sh
 
 export PATH_PHOTO = 'Z:\Path\to\Source'
-export PATH_STORE = 'Z:\Path\to\Archive'
+export PATH_PHOTO_STORE = 'Z:\Path\to\Archive'
 export CHAT_ID_GROUP = '-XXXXXXXXX'
 
 """
@@ -20,8 +20,10 @@ from glob import glob
 import datetime
 import psutil
 
+PATH_SENSOR = get_EnvironmentVariable('PATH_SENSOR')
+PATH_SENSOR = get_EnvironmentVariable('PATH_SENSOR_STORE')
 PATH_PHOTO = get_EnvironmentVariable('PATH_PHOTO')
-PATH_STORE = get_EnvironmentVariable('PATH_STORE')
+PATH_PHOTO_STORE = get_EnvironmentVariable('PATH_PHOTO_STORE')
 CHAT_ID_GROUP = get_EnvironmentVariable('CHAT_ID_GROUP')
 CHATBOT_KEY = get_EnvironmentVariable('CHATBOT_KEY')
 
@@ -30,12 +32,14 @@ STATUS_POWER = True
 STATUS_MOVEIMAGE = True
 STATUS_BATTERY = '100'
 
+print("PATH_SENSOR={}".format(PATH_SENSOR))
+print("PATH_SENSOR_STORE={}".format(PATH_SENSOR_STORE))
 print("PATH_PHOTO={}".format(PATH_PHOTO))
-print("PATH_STORE={}".format(PATH_STORE))
+print("PATH_PHOTO_STORE={}".format(PATH_PHOTO_STORE))
 print("CHAT_ID_GROUP={}".format(CHAT_ID_GROUP))
 print("CHAT_ID_GROUP={}".format(CHAT_ID_GROUP))
 
-if None in [PATH_PHOTO, PATH_STORE, CHAT_ID_GROUP, CHATBOT_KEY]:
+if None in [PATH_PHOTO, PATH_PHOTO_STORE, CHAT_ID_GROUP, CHATBOT_KEY]:
     #raise IOError("Required environment variables not set!")
     print("ERROR: Some required environment variables are missing!")
     print("Did you forget to:")
@@ -123,9 +127,9 @@ def sendImage(bot, job):
 
             for filepath in filepath_list:
                 filename = os.path.basename(filepath)
-                filepath_new = filepath.replace(PATH_PHOTO,PATH_STORE)
+                filepath_new = filepath.replace(PATH_PHOTO,PATH_PHOTO_STORE)
                 filedir_new = os.path.dirname(filepath_new)
-                #filepath_new = os.path.join(path_store,filename)
+                #filepath_new = os.path.join(PATH_PHOTO_STORE,filename)
                 cam, caption = parse_filename(filename)
                 if cam is not None:
                     if not os.path.exists(filedir_new):
@@ -160,7 +164,33 @@ def sendImage_disarm(bot, update):
     logging.info('STATUS_SENDIMAGE is False')
     update.message.reply_text('SendImage - DISARMED')
 
+def sendSensorImage(bot, job):
+    filepath_list = [y for x in os.walk(PATH_SENSOR) for y in glob(os.path.join(x[0], '*.jpg'))]
+    if len(filepath_list) == 0:
+        logging.info("No files to move")
+    else:
+        logging.info("{} files to move".format(len(filepath_list)))
 
+    filepath = filepath_list[0]
+    filename = os.path.basename(filepath)
+    filepath_new = filepath.replace(PATH_SENSOR,PATH_SENSOR_STORE)
+    filedir_new = os.path.dirname(filepath_new)
+
+    cam, caption = parse_filename(filename)
+    if cam is not None:
+        if not os.path.exists(filedir_new):
+            os.makedirs(filedir_new)
+        logging.info('Moving {} to {}'.format(filepath, filepath_new))
+        if os.path.isfile(filepath):
+            shutil.move(filepath, filepath_new)
+            logging.info('Move Complete {}'.format(filename))
+        else:
+            logging.error('Move Unable {}'.format(filename))
+            
+        logging.info('Sending {}'.format(filename))
+        bot.send_photo(chat_id=CHAT_ID_GROUP, photo=open(filepath_new, 'rb'), caption=caption)
+        logging.info('Send Complete {}'.format(filename))
+    return None
 
 class CamClass:
     def __init__(self, Name):
@@ -233,6 +263,7 @@ def main():
     # Start the Bot
     jobqueue.run_repeating(sendImage, interval=5, first=0)
     jobqueue.run_repeating(checkPower, interval=5, first=0)
+    jobqueue.run_repeating(sendSensorImage, interval=5, first=0)
     updater.start_polling()
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
