@@ -3,10 +3,6 @@
 
 source set_env.sh
 
-export PATH_PHOTO = 'Z:\Path\to\Source'
-export PATH_PHOTO_STORE = 'Z:\Path\to\Archive'
-export CHAT_ID_GROUP = '-XXXXXXXXX'
-
 """
 import sys
 import os
@@ -21,7 +17,7 @@ import datetime
 import psutil
 
 PATH_SENSOR = get_EnvironmentVariable('PATH_SENSOR')
-PATH_SENSOR = get_EnvironmentVariable('PATH_SENSOR_STORE')
+PATH_SENSOR_STORE = get_EnvironmentVariable('PATH_SENSOR_STORE')
 PATH_PHOTO = get_EnvironmentVariable('PATH_PHOTO')
 PATH_PHOTO_STORE = get_EnvironmentVariable('PATH_PHOTO_STORE')
 CHAT_ID_GROUP = get_EnvironmentVariable('CHAT_ID_GROUP')
@@ -170,14 +166,13 @@ def sendSensorImage(bot, job):
         logging.info("No files to move")
     else:
         logging.info("{} files to move".format(len(filepath_list)))
+    
+    if len(filepath_list) > 0:
+        filepath = filepath_list[0]
+        filename = os.path.basename(filepath)
+        filepath_new = filepath.replace(PATH_SENSOR,PATH_SENSOR_STORE)
+        filedir_new = os.path.dirname(filepath_new)
 
-    filepath = filepath_list[0]
-    filename = os.path.basename(filepath)
-    filepath_new = filepath.replace(PATH_SENSOR,PATH_SENSOR_STORE)
-    filedir_new = os.path.dirname(filepath_new)
-
-    cam, caption = parse_filename(filename)
-    if cam is not None:
         if not os.path.exists(filedir_new):
             os.makedirs(filedir_new)
         logging.info('Moving {} to {}'.format(filepath, filepath_new))
@@ -188,9 +183,8 @@ def sendSensorImage(bot, job):
             logging.error('Move Unable {}'.format(filename))
             
         logging.info('Sending {}'.format(filename))
-        bot.send_photo(chat_id=CHAT_ID_GROUP, photo=open(filepath_new, 'rb'), caption=caption)
+        bot.send_photo(chat_id=CHAT_ID_GROUP, photo=open(filepath_new, 'rb'), caption='Sensor Triggered')
         logging.info('Send Complete {}'.format(filename))
-    return None
 
 class CamClass:
     def __init__(self, Name):
@@ -222,7 +216,8 @@ DICT_EVENT = {
     'INTRUSION_DETECTION' : 'An Intrusion',
     'MOTION_DETECTION' : 'A Motion',
     'LINE_CROSSING_DETECTION' : 'An Entry',
-    'PIR' : 'A PIR Motion'
+    'PIR' : 'A PIR Motion',
+    'LIGHT_GATE' : 'A Crossing'
 }
 
 def parse_filename(filename):
